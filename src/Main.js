@@ -5,6 +5,19 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ModalContext } from './ModalContext';
 
+import messaging from '@react-native-firebase/messaging';
+
+import PushNotification, { Importance } from 'react-native-push-notification';
+
+import cheerio from 'cheerio';
+
+import qs from 'qs';
+
+import { AuthContext } from './AuthContext';
+
+import pushNoti from './pushNoti';
+
+
 import HomeScreen from './home/HomeScreen';
 import SettingsScreen from './settings/SettingsScreen';
 import OpenerModal from './opener/OpenerModal';
@@ -15,10 +28,104 @@ import OpenerModal from './opener/OpenerModal';
 
 
 
+
+
 const Tab = createBottomTabNavigator();
 
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  console.log('[Background Remote Message]', remoteMessage);
+});
+
+
+
+
+
+
 export default function Main() {
+
+  const requestUserPermission = async () => {
+ 
+    const authStatus = await messaging().requestPermission();
+    const enabled =
+      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
+      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
+  
+    if (enabled) {
+      await messaging()
+        .getToken()
+        .then(async fcmToken => {
+          console.log(fcmToken); //fcm token을 활용해 특정 device에 push를 보낼 수 있다.
+          await sendToken(fcmToken);
+        })
+        .catch(e => console.log('error: ', e));
+    }
+  };
+
+
+  const { getData } = useContext(AuthContext);
+
+
+ 
+
+  const sendToken = async (token) => {
+
+    const serverURL = await getData('serverURL');
+    const email = await getData('email');
+
+    let data = { "email": email, "token": token, "platform": "fcm" };
+
+    fetch(serverURL + "/apnstokenget", {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: qs.stringify(data),
+    })
+      .then((response) => response.text())
+      .then((html) => {
+        console.log(html);
+        console.log("서버에 토큰 등록 완료");
+      })
+      .catch((error) => {
+        console.error('Error:', error);
+        console.log('failed');
+        Alert.alert(
+          "오류!",
+          "서버와 연결할 수 없습니다.",
+          [
+            { text: "확인" }
+          ],
+          { cancelable: false }
+        );
+      });
+  };
+
+
+
+
+
+
+
+
+
+
+
+
   const [modalVisible, setModalVisible] = useState(false);
+
+
+
+
+  useEffect(() => {
+    requestUserPermission();
+
+
+    const unsubscribe = messaging().onMessage(async remoteMessage => {
+      pushNoti.displayNoti(remoteMessage);
+      console.log('[Remote Message] ', JSON.stringify(remoteMessage));
+    });
+    return unsubscribe;
+  }, []);
 
 
 
