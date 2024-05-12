@@ -15,7 +15,8 @@ function Opener()  {
     const serverURL = getServerUrl;
     console.log("서버 주소: " + serverURL);
 
-    fetch(serverURL + "/openwithapp?isTest=1", {
+    fetch(serverURL + "/openwithapp", {
+    // fetch(serverURL + "/openwithapp?isTest=1", {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
